@@ -28,24 +28,68 @@ class TorchNetwork(nn.Module):
 
     def _forward_pass(self, x_train):
         '''
-        TODO: Implement the forward propagation algorithm.
-        The method should return the output of the network.
+        Forward pass using PyTorch's automatic operations.
+        
+        Notice how much simpler this is compared to the scratch implementation!
+        PyTorch handles all the matrix operations and gradient tracking automatically.
+        
+        Args:
+            x_train: Input tensor
+            
+        Returns:
+            Raw output logits (before softmax)
         '''
-        pass
+        # Layer 1: Input to first hidden layer
+        # self.linear1 automatically does: W1 × x + bias
+        h1 = self.activation_func(self.linear1(x_train))  # Apply sigmoid activation
+        
+        # Layer 2: First hidden to second hidden layer
+        h2 = self.activation_func(self.linear2(h1))  # Apply sigmoid activation
+        
+        # Layer 3: Second hidden to output layer
+        # No activation here because our loss function (BCEWithLogitsLoss) 
+        # expects raw logits and applies sigmoid/softmax internally
+        output = self.linear3(h2)  # Raw output scores
+        
+        return output
 
 
     def _backward_pass(self, y_train, output):
         '''
-        TODO: Implement the backpropagation algorithm responsible for updating the weights of the neural network.
+        Backpropagation using PyTorch's automatic differentiation.
+        
+        This is the magic of PyTorch! Instead of manually computing gradients
+        like we did in the scratch implementation, PyTorch automatically
+        tracks all operations and computes gradients for us.
+        
+        Args:
+            y_train: True labels (one-hot encoded)
+            output: Network predictions
         '''
-        pass
+        # Convert labels to float type for loss calculation
+        y_train = y_train.float()
+        
+        # Calculate the loss (how wrong our predictions are)
+        # BCEWithLogitsLoss combines sigmoid + binary cross entropy
+        loss = self.loss_func(output, y_train)
+        
+        # THE MAGIC: PyTorch automatically computes all gradients!
+        # This single line does what took us ~30 lines in the scratch implementation
+        # It uses the computational graph to apply the chain rule everywhere
+        loss.backward()  # Compute gradients for ALL parameters automatically
 
 
     def _update_weights(self):
         '''
-        TODO: Update the network weights according to stochastic gradient descent.
+        Update weights using PyTorch's built-in optimizer.
+        
+        Again, PyTorch makes this incredibly simple! The optimizer
+        automatically applies the SGD update rule to all parameters.
         '''
-        pass
+        # Apply SGD update to all network parameters
+        # This automatically does: W = W - learning_rate * gradient
+        # for every single weight and bias in the network
+        self.optimizer.step()  # One line replaces our manual weight updates!
 
 
     def _flatten(self, x):
@@ -66,11 +110,23 @@ class TorchNetwork(nn.Module):
 
     def predict(self, x):
         '''
-        TODO: Implement the prediction making of the network.
-
-        The method should return the index of the most likeliest output class.
+        Make predictions using the trained PyTorch network.
+        
+        Args:
+            x: Input tensor (batch of images)
+            
+        Returns:
+            Predicted class indices (0-9 for digits)
         '''
-        pass
+        # Disable gradient computation for faster inference and less memory usage
+        # We don't need gradients when just making predictions
+        with torch.no_grad():
+            x = self._flatten(x)  # Flatten images to vectors
+            output = self._forward_pass(x)  # Get raw logits
+            
+            # Find the class with highest score for each input
+            # dim=1 means we take argmax along the class dimension
+            return torch.argmax(output, dim=1)  # Return predicted class indices
 
 
     def fit(self, train_loader, val_loader):
