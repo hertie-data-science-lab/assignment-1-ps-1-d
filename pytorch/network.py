@@ -28,24 +28,42 @@ class TorchNetwork(nn.Module):
 
     def _forward_pass(self, x_train):
         '''
-        TODO: Implement the forward propagation algorithm.
-        The method should return the output of the network.
+        Forward propagation algorithm.
+        Returns the output of the network.
         '''
-        pass
+        # Layer 1: input -> hidden1 with sigmoid activation
+        x = self.linear1(x_train)
+        x = self.activation_func(x)
+        
+        # Layer 2: hidden1 -> hidden2 with sigmoid activation
+        x = self.linear2(x)
+        x = self.activation_func(x)
+        
+        # Layer 3: hidden2 -> output (logits, no activation)
+        x = self.linear3(x)
+        
+        return x
 
 
     def _backward_pass(self, y_train, output):
         '''
-        TODO: Implement the backpropagation algorithm responsible for updating the weights of the neural network.
+        Backpropagation algorithm responsible for updating the weights of the neural network.
         '''
-        pass
+        # Convert y_train to float if needed
+        y_train = y_train.float()
+        
+        # Compute loss
+        loss = self.loss_func(output, y_train)
+        
+        # Backpropagate
+        loss.backward()
 
 
     def _update_weights(self):
         '''
-        TODO: Update the network weights according to stochastic gradient descent.
+        Updating the network weights according to stochastic gradient descent.
         '''
-        pass
+        self.optimizer.step()
 
 
     def _flatten(self, x):
@@ -66,15 +84,32 @@ class TorchNetwork(nn.Module):
 
     def predict(self, x):
         '''
-        TODO: Implement the prediction making of the network.
-
-        The method should return the index of the most likeliest output class.
+        Prediction making of the network.
+        Returns the index of the most likeliest output class
         '''
-        pass
+        # Set to evaluation mode
+        self.eval()
+        
+        with torch.no_grad():
+            # Flatten input
+            x = self._flatten(x)
+            
+            # Forward pass
+            output = self._forward_pass(x)
+            
+            # Get predicted class (index of max logit)
+            predictions = torch.argmax(output, dim=1)
+        
+        # Set back to training mode
+        self.train()
+        
+        return predictions
 
 
     def fit(self, train_loader, val_loader):
         start_time = time.time()
+        # Initialize history tracking
+        self.history = {"epochs": [], "train_accuracy": [], "val_accuracy": [], "learning_rate": []}
 
         for iteration in range(self.epochs):
             for x, y in train_loader:
@@ -86,6 +121,17 @@ class TorchNetwork(nn.Module):
                 output = self._forward_pass(x)
                 self._backward_pass(y, output)
                 self._update_weights()
+                
+            # Calculate and store accuracies for plotting
+            train_acc = self.compute_accuracy(train_loader)
+            val_acc = self.compute_accuracy(val_loader)
+            
+            self.history['train_accuracy'].append(train_acc.item())
+            self.history['val_accuracy'].append(val_acc.item())
+            self.history['epochs'].append(iteration + 1)
+            current_lr = self.optimizer.param_groups[0]['lr']
+            self.history['learning_rate'].append(current_lr)
+            
 
             self._print_learning_progress(start_time, iteration, train_loader, val_loader)
 
